@@ -1,0 +1,4 @@
+node_modules/
+result.txt
+*.mp3
+build/
