@@ -1,22 +1,24 @@
 import { v1p1beta1 as speech } from "@google-cloud/speech";
-import fs from "fs";
 
 const [first_arg, second_arg] = process.argv.slice(2);
 
 if (first_arg === "--help") {
-  console.log("Usage: node index.js <FILE_PATH? (or gs://)> <LANG?>");
+  console.log("Usage: node index.js <GS_URI)> <LANG?>");
   process.exit(0);
 }
 
-const FILE_PATH = first_arg ?? "./input.mp3";
+const GS_URI = first_arg;
 const LANG = second_arg ?? "hu-HU";
 
-console.log({ FILE_PATH, LANG });
+console.log({ GS_URI, LANG });
+
+if (!GS_URI?.startsWith("gs://")) {
+  throw new Error("Invalid GS_URL");
+}
 
 (async function main() {
   const client = new speech.SpeechClient();
-
-  const [response] = await client.recognize({
+  const [operation] = await client.longRunningRecognize({
     config: {
       enableWordTimeOffsets: true,
       encoding: "MP3",
@@ -24,11 +26,18 @@ console.log({ FILE_PATH, LANG });
       languageCode: LANG,
     },
     audio: {
-      content: FILE_PATH.startsWith("gs://")
-        ? FILE_PATH
-        : fs.readFileSync(FILE_PATH).toString("base64"),
+      uri: GS_URI,
     },
   });
+
+  // // Get a Promise representation of the final result of the job
+  // const [response] = await operation.promise();
+  // const transcription = response.results
+  //   .map((result) => result.alternatives[0].transcript)
+  //   .join("\n");
+  // console.log(`Transcription: ${transcription}`);
+
+  const [response] = await operation.promise();
   if (!response.results) {
     throw new Error("No result");
   }
